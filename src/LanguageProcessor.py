@@ -42,7 +42,7 @@ def case_fold(word_list):
 def remove_stop_words(word_list):
 
   stop_words = stopwords.words('english')
-  stop_words = stop_words + ["!", ".", "..", "...", "?", "'s", "n't", "'ve", ",", "'", "$", "(", ")", "''", "~", "~~", "`", "``", "-", "--", "&", "{", "}", ":", ";", "\.*"]
+  stop_words = stop_words + ["!", ".", "..", "...", "?", "'s", "n't", "'ve", ",", "'", "$", "(", ")", "''", "~", "~~", "`", "``", "-", "--", "&", "{", "}", ":", ";", "\.*", "'m", "'re"]
   clean_words = [token for token in word_list if token not in stop_words]
   
   return clean_words

@@ -1,28 +1,26 @@
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map.Entry;
-import java.util.TreeMap;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import javax.swing.AbstractButton;
-import javax.swing.JRadioButton;
 
 import org.json.*;
 
-
+/*
+ * Holds a single queue to hold outstanding reviews to be processed
+ * Contains two maps for each query/product entered, for comparison
+ */
 public class Aggregator implements Runnable{
 
-	private BlockingQueue<String> queue;
+	private BlockingQueue<Review> queue;
 	private boolean finished;
 	private Object lock;
 	private Hashtable<String, Integer> map;
+	private Hashtable<String, Integer> map2;
 	private Visualizer visualizer;
 	private ContentAnalyzer contentAnalyzer;
 	
@@ -34,10 +32,12 @@ public class Aggregator implements Runnable{
 	
 	
 	public Aggregator(ContentAnalyzer contentAnalyzer) {
-		queue = new LinkedBlockingQueue<String>();
+		queue = new LinkedBlockingQueue<Review>();
+		//queue2 = new LinkedBlockingQueue<String>();
 		finished = false;
 		lock = new Object();
 		map = new Hashtable<String, Integer>();
+		map2 = new Hashtable<String, Integer>();
 		visualizer = new Visualizer();
 		this.contentAnalyzer = contentAnalyzer;
 	}
@@ -45,8 +45,8 @@ public class Aggregator implements Runnable{
 	protected void addToQueue(Object item) {
 		System.out.println("in add");
 		//synchronized(lock) {
-		if (item instanceof String){
-			queue.add((String) item);
+		if (item instanceof Review){
+			queue.add((Review) item);
 		} else {
 			synchronized(lock) {
 				finished = true;
@@ -83,22 +83,28 @@ public class Aggregator implements Runnable{
 					if (queue.size() == 0) {
 						lock.wait(3000); //artificial wait so the visual does not change too fast
 					} else {
-						String jsonMap = queue.take();
+						Review reviewObj = queue.take();
+						String jsonMap = reviewObj.getReview();
 						JSONObject jObject = new JSONObject(jsonMap);
+						int queryNum = reviewObj.getQueryNum();
+								
+						insertIntoCorrectMap(jObject, queryNum);
+						/*
 						Iterator<String> keys = jObject.keys();
-						
 						while(keys.hasNext()) {
 							String key = keys.next();
 							Integer value = jObject.getInt(key);
 							
 							Integer presentValue = map.get(key);
 							if(presentValue != null) {
-								map.put(key, presentValue + value);
+								map.put(key, presentValue + value); //increment the value of the word in this map by the count present in this review instance
 							} else {
 								map.put(key, value);
 							}
 									
 						}
+						*/
+						
 					}
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -116,29 +122,56 @@ public class Aggregator implements Runnable{
 						
 						if (button.isSelected()) {
 							if (button.getName() == BARNAME) {
-								visualizer.makeBarChartInteractive((new JSONObject(getHashtable()).toString()));
+								visualizer.makeBarChartInteractive((new JSONObject(getHashtable()).toString()), (new JSONObject(getHashtable2()).toString()));
 								//visualizer.makeWordCloudInteractive((new JSONObject(getHashtable()).toString()));
 								break;
 							} else {
-								visualizer.makeWordCloudInteractive((new JSONObject(getHashtable()).toString()));
+								visualizer.makeWordCloudInteractive((new JSONObject(getHashtable()).toString()), (new JSONObject(getHashtable2()).toString()));
 								break;
 							}				
 						}
+						
+						//also send copy of data to the Window so it can make a request to the visualizer if it needs to
 					}
 
-					//visualizer.makeBarChartInteractive((new JSONObject(getHashtable()).toString()));
-					//visualizer.makeBarChart(getHashtable());
 					String fullCounts = getHashtable().toString();
+					String fullCounts2 = getHashtable2().toString();
 					//String orderedCounts = orderHashtable(fullCounts);
-					Window.getWindow().setOutputText(fullCounts);
+					Window.getWindow().setOutputText(fullCounts, fullCounts2);
 				}
 			}
 			
 		}	
 	}
+	
+	private void insertIntoCorrectMap(JSONObject jObject, int queryNum) {
+		Iterator<String> keys = jObject.keys();
+		Hashtable<String, Integer> correctMap = map;
+		
+		if (queryNum == ContentAnalyzer.QUERY_2) {
+			correctMap = map2;
+		}
+		
+		while(keys.hasNext()) {
+			String key = keys.next();
+			Integer value = jObject.getInt(key);
+			
+			Integer presentValue = correctMap.get(key);
+			if(presentValue != null) {
+				correctMap.put(key, presentValue + value); //increment the value of the word in this map by the count present in this review instance
+			} else {
+				correctMap.put(key, value);
+			}
+					
+		}
+	}
 
 	protected Hashtable<String, Integer> getHashtable() {
 		return map;
+	}
+	
+	protected Hashtable<String, Integer> getHashtable2() {
+		return map2;
 	}
 	
 	//not currently used

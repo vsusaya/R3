@@ -23,7 +23,7 @@ import org.mcavallo.opencloud.Tag;
  */
 public class Visualizer {
 	
-	static final int MINIMUM = 5;
+	static final int MINIMUM = 3;
 	static final int MAX_RESULTS = 15;
 	
 	public Visualizer() {
@@ -33,9 +33,13 @@ public class Visualizer {
 	//for interactive version, check that the key from the hashtable does not already exist?
 	//necessary?
 	//if too slow, consider editing so that only a hashtable of diffs is sent
-	public void makeBarChart(Hashtable<String, Integer> countsTable) {
+	public void makeBarChart(Hashtable<String, Integer> countsTable, Hashtable<String, Integer> countsTable2) {
 		
 		HashMap<String, Integer> counts = hashMapTopK(countsTable);
+		HashMap<String, Integer> counts2 = null;
+		if (countsTable2 != null) {
+			counts2 = hashMapTopK(countsTable2);
+		}
 		
 		DefaultCategoryDataset objDataset = new DefaultCategoryDataset();
 		
@@ -44,10 +48,11 @@ public class Visualizer {
 			if(entry.getValue() < MINIMUM) {
 				continue;
 			}
-			
-			objDataset.setValue(entry.getValue(), "Word", entry.getKey());
+					
+			objDataset.setValue(entry.getValue(), "Product1", entry.getKey());
+			/*
 			//title, x-axis label, y-axis label, dataset, Plot orientation, show legend, use tooltips, generate URLs
-			JFreeChart barChart = ChartFactory.createBarChart("Word Count", "Words", "Count", objDataset, PlotOrientation.VERTICAL, false, true, false);
+			JFreeChart barChart = ChartFactory.createBarChart("Word Count", "Words", "Count", objDataset, PlotOrientation.VERTICAL, true, true, false);
 			
 			//make x-axis labels diagonal
 			CategoryPlot plot = barChart.getCategoryPlot();
@@ -56,35 +61,64 @@ public class Visualizer {
 			
 			ChartPanel cPanel = new ChartPanel(barChart);
 			setChartPanelPref(cPanel);
-			
-			
+					
 			Window.getWindow().setOutputPanelChart(cPanel);
-			
+			*/	
 		}
 		
+		if (counts2 != null) {
+			for(Map.Entry<String, Integer> entry : counts2.entrySet()) {
+				if(entry.getValue() < MINIMUM) {
+					continue;
+				}
+				objDataset.setValue(entry.getValue(), "Product2", entry.getKey());	
+			}
+		}
 		
-		//setOutputPanelChart();
+		//title, x-axis label, y-axis label, dataset, Plot orientation, show legend, use tooltips, generate URLs
+		JFreeChart barChart = ChartFactory.createBarChart("Word Count", "Words", "Count", objDataset, PlotOrientation.VERTICAL, true, true, false);
+		
+		//make x-axis labels diagonal
+		CategoryPlot plot = barChart.getCategoryPlot();
+		CategoryAxis xAxis = (CategoryAxis) plot.getDomainAxis();
+		xAxis.setCategoryLabelPositions(CategoryLabelPositions.UP_45);
+		
+		ChartPanel cPanel = new ChartPanel(barChart);
+		setChartPanelPref(cPanel);
+		
+		
+		Window.getWindow().setOutputPanelChart(cPanel);
 		
 	}
 	
-	public void makeBarChartInteractive(String countString) {
+	public void makeBarChartInteractive(String countString, String countString2) {
 		
 		HashMap<String, Integer> counts = stringToHashMapTopK(countString);
+		HashMap<String, Integer> counts2 = null;
+		if (countString2 != null || countString2 != "") {
+			counts2 = stringToHashMapTopK(countString2);
+		}
 		
 		DefaultCategoryDataset objDataset = new DefaultCategoryDataset();
 		
 		for(Map.Entry<String, Integer> entry : counts.entrySet()) {
-			
 			if(entry.getValue() < MINIMUM) {
 				continue;
 			}
-			
-			objDataset.setValue(entry.getValue(), "Word", entry.getKey());
-			
+			objDataset.setValue(entry.getValue(), "Product1", entry.getKey());		
 		}	
 		
+		if (counts2 != null) {
+			for(Map.Entry<String, Integer> entry : counts2.entrySet()) {
+				if(entry.getValue() < MINIMUM) {
+					continue;
+				}
+				objDataset.setValue(entry.getValue(), "Product2", entry.getKey());	
+			}
+		}
+	
 		//title, x-axis label, y-axis label, dataset, Plot orientation, show legend, use tooltips, generate URLs
-		JFreeChart barChart = ChartFactory.createBarChart("Word Count", "Words", "Count", objDataset, PlotOrientation.VERTICAL, false, true, false);
+		JFreeChart barChart = ChartFactory.createBarChart("Word Count", "Words", "Count", objDataset, PlotOrientation.VERTICAL, true, true, false);
 		
 		//make x-axis labels diagonal
 		CategoryPlot plot = barChart.getCategoryPlot();
@@ -97,7 +131,7 @@ public class Visualizer {
 		Window.getWindow().setOutputPanelChartInteractive(cPanel);
 	}
 	
-	public void makeWordCloud(Hashtable<String, Integer> counts) {
+	public void makeWordCloud(Hashtable<String, Integer> counts, Hashtable<String, Integer> counts2) {
 		
 		Cloud cloud = new Cloud();
 		
@@ -107,8 +141,20 @@ public class Visualizer {
 				continue;
 			}
 			
-			cloud.addTag(new Tag(entry.getKey(), entry.getValue()));
+			cloud.addTag(new Tag(entry.getKey(), String.format("%d", ContentAnalyzer.QUERY_1), entry.getValue()));
 				
+		}
+		
+		if (counts2 != null) {
+			for(Map.Entry<String, Integer> entry : counts2.entrySet()) {
+				if(entry.getValue() < MINIMUM) {
+					continue;
+				}
+				
+				//adding symbols to the end of the word so that the cloud does not combine the totals of words that appeared in both queries
+				//the symbol will be removed in the in the Window method below
+				cloud.addTag(new Tag(entry.getKey() + "**", String.format("%d", ContentAnalyzer.QUERY_2) ,entry.getValue()));			
+			}
 		}
 		
 		//send cloud to Window so it can create labels 
@@ -116,10 +162,15 @@ public class Visualizer {
 		
 	}
 	
-public void makeWordCloudInteractive(String countString) {
+public void makeWordCloudInteractive(String countString, String countString2) {
 		
 		HashMap<String, Integer> counts = stringToHashMap(countString);
 	
+		HashMap<String, Integer> counts2 = null;
+		if (countString2 != null || countString2 != "") {
+			counts2 = stringToHashMap(countString2);
+		}
+		
 		Cloud cloud = new Cloud();
 		
 		//add all words and their weights (as Tags) to cloud
@@ -128,16 +179,27 @@ public void makeWordCloudInteractive(String countString) {
 				continue;
 			}
 			
-			cloud.addTag(new Tag(entry.getKey(), entry.getValue()));
+			cloud.addTag(new Tag(entry.getKey(), String.format("%d", ContentAnalyzer.QUERY_1) ,entry.getValue()));
 				
+		}
+		
+		if (counts2 != null) {
+			for(Map.Entry<String, Integer> entry : counts2.entrySet()) {
+				if(entry.getValue() < MINIMUM) {
+					continue;
+				}
+				
+				//adding symbols to the end of the word so that the cloud does not combine the totals of words that appeared in both queries
+				//the symbol will be removed in the in the Window method below
+				cloud.addTag(new Tag(entry.getKey() + "**", String.format("%d", ContentAnalyzer.QUERY_2) ,entry.getValue()));
+					
+			}
 		}
 		
 		//send cloud to Window so it can create labels 
 		Window.getWindow().setOutputPanelCloudInteractive(cloud);
 		
 	}
-	
-	
 	
 	
 	private void setChartPanelPref(ChartPanel cPanel) {
