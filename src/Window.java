@@ -18,6 +18,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Hashtable;
 
 import javax.swing.JPanel;
 
@@ -29,12 +30,25 @@ import java.awt.Color;
 
 import javax.swing.JRadioButton;
 
+import java.awt.GridLayout;
+
+import com.jgoodies.forms.layout.FormLayout;
+import com.jgoodies.forms.layout.ColumnSpec;
+import com.jgoodies.forms.layout.RowSpec;
+import com.jgoodies.forms.layout.FormSpecs;
+
+import javax.swing.border.LineBorder;
+
+import java.awt.Font;
+
 
 public class Window {
 
 	private JFrame frame;
 	private JTextField pidField;
+	private JTextField pid2Field;
 	private JTextField constraintField;
+	private JTextField constraint2Field;
 	private Connection conn;
 	private PreparedStatement range;
 	private PreparedStatement filter;
@@ -59,6 +73,11 @@ public class Window {
 	private ArrayList<Thread> mapThreads; //from CA
 	private Thread aggThread; //from CA
 	private JButton stopButton;
+	private JLabel searchLabel;
+	private JLabel p1Label;
+	private JLabel p2Label;
+	
+	
 	
 
 	/**
@@ -95,36 +114,16 @@ public class Window {
 	 */
 	private void initialize() {
 		frame = new JFrame();
-		frame.setBounds(100, 100, 1200, 800);
+		frame.setBounds(100, 100, 1440, 900);
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.getContentPane().setLayout(null);
 		
-		pidField = new JTextField();
-		pidField.setText("B00B93KG1A");
-		pidField.setBounds(183, 40, 134, 28);
-		frame.getContentPane().add(pidField);
-		pidField.setColumns(10);
-		
-		JLabel pidLabel = new JLabel("Product ID");
-		pidLabel.setBounds(38, 46, 85, 16);
-		frame.getContentPane().add(pidLabel);
-		
-		constraintField = new JTextField();
-		constraintField.setText("4, 5");
-		constraintField.setBounds(183, 68, 134, 28);
-		frame.getContentPane().add(constraintField);
-		constraintField.setColumns(10);
-		
-		JLabel constraintLabel = new JLabel("Value Constraint(s)");
-		constraintLabel.setBounds(38, 74, 123, 16);
-		frame.getContentPane().add(constraintLabel);
-		
 		outputLabel = new JLabel("Output:");
-		outputLabel.setBounds(38, 636, 279, 16);
+		outputLabel.setBounds(38, 714, 279, 16);
 		frame.getContentPane().add(outputLabel);
 		
 		JScrollPane outputScrollPane = new JScrollPane();
-		outputScrollPane.setBounds(38, 664, 1139, 90);
+		outputScrollPane.setBounds(38, 742, 1139, 47);
 		frame.getContentPane().add(outputScrollPane);
 		
 		outputArea = new JTextArea();
@@ -157,8 +156,8 @@ public class Window {
 						String results;
 						try {
 							outputLabel.setText(String.format("Output for %s: (processing)", constraintField.getText()));
-							results = queryHandler.executeQuery(range, filter, pidField.getText(), constraintField.getText());
-							outputArea.setText(results);
+							ArrayList<Hashtable<String, Integer>> finalList = queryHandler.executeQuery(range, filter, pidField.getText(), constraintField.getText(), pid2Field.getText(), constraint2Field.getText());
+							setOutputText(finalList.get(0).toString(), finalList.get(1).toString());
 							outputLabel.setText(String.format("Output for %s: (done)", constraintField.getText()));
 						} catch (Exception e1) {
 							e1.printStackTrace();
@@ -179,11 +178,11 @@ public class Window {
 				
 			}
 		});
-		submitButton.setBounds(38, 126, 117, 29);
+		submitButton.setBounds(636, 158, 117, 29);
 		frame.getContentPane().add(submitButton);
 		
 		outputPanel = new JPanel(new BorderLayout());
-		outputPanel.setBounds(38, 187, 1139, 437);
+		outputPanel.setBounds(38, 195, 1222, 507);
 		frame.getContentPane().add(outputPanel);
 		
 		
@@ -191,7 +190,7 @@ public class Window {
 		//product panel
 		productPanel = new JPanel();
 		productPanel.setBackground(Color.WHITE);
-		productPanel.setBounds(532, 40, 645, 95);
+		productPanel.setBounds(778, 40, 645, 95);
 		frame.getContentPane().add(productPanel);
 				
 		productBtnList = new ArrayList<JButton>();
@@ -229,13 +228,13 @@ public class Window {
 		//Radio Button Group
 		rdbtnBarChart = new JRadioButton("Bar Chart");
 		rdbtnBarChart.setName("Bar Chart");
-		rdbtnBarChart.setBounds(354, 42, 141, 23);
+		rdbtnBarChart.setBounds(38, 159, 141, 23);
 		rdbtnBarChart.setSelected(true);
 		frame.getContentPane().add(rdbtnBarChart);
 		
 		rdbtnWordCloud = new JRadioButton("Word Cloud");
 		rdbtnWordCloud.setName("Word Cloud");
-		rdbtnWordCloud.setBounds(354, 70, 141, 23);
+		rdbtnWordCloud.setBounds(206, 159, 141, 23);
 		frame.getContentPane().add(rdbtnWordCloud);
 		
 		vizButtonGroup = new ButtonGroup();
@@ -257,8 +256,105 @@ public class Window {
 				
 			}
 		});
-		stopButton.setBounds(354, 631, 117, 29);
+		stopButton.setBounds(359, 709, 117, 29);
 		frame.getContentPane().add(stopButton);
+		
+		JPanel prod1Panel = new JPanel();
+		prod1Panel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
+		prod1Panel.setBounds(38, 17, 337, 129);
+		frame.getContentPane().add(prod1Panel);
+		prod1Panel.setLayout(new FormLayout(new ColumnSpec[] {
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,},
+			new RowSpec[] {
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,}));
+		
+		p1Label = new JLabel("Product 1:");
+		p1Label.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		prod1Panel.add(p1Label, "4, 2");
+		
+		JLabel pidLabel = new JLabel("Product ID");
+		prod1Panel.add(pidLabel, "4, 4");
+		
+		pidField = new JTextField();
+		prod1Panel.add(pidField, "8, 4");
+		pidField.setText("B00B93KG1A");
+		pidField.setColumns(10);
+		
+		searchLabel = new JLabel("Search Terms");
+		prod1Panel.add(searchLabel, "4, 6");
+		
+		JLabel constraintLabel = new JLabel("Value Constraint(s)");
+		prod1Panel.add(constraintLabel, "4, 8");
+		
+		constraintField = new JTextField();
+		prod1Panel.add(constraintField, "8, 8");
+		constraintField.setText("4, 5");
+		constraintField.setColumns(10);
+		
+		
+		
+		//Panel for Product 2
+		JPanel prod2Panel = new JPanel();
+		prod2Panel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
+		prod2Panel.setBounds(416, 17, 337, 129);
+		frame.getContentPane().add(prod2Panel);
+		prod2Panel.setLayout(new FormLayout(new ColumnSpec[] {
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,},
+			new RowSpec[] {
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,}));
+		
+		p2Label = new JLabel("Product 2: (optional)\n");
+		p2Label.setFont(new Font("Lucida Grande", Font.BOLD, 13));
+		prod2Panel.add(p2Label, "4, 2, default, bottom");
+		
+		JLabel pid2Label = new JLabel("Product ID");
+		prod2Panel.add(pid2Label, "4, 4");
+		
+		pid2Field = new JTextField();
+		prod2Panel.add(pid2Field, "8, 4");
+		pid2Field.setText("B00B93KG1A");
+		pid2Field.setColumns(10);
+		
+		searchLabel = new JLabel("Search Terms");
+		prod2Panel.add(searchLabel, "4, 6");
+		
+		JLabel constraint2Label = new JLabel("Value Constraint(s)");
+		prod2Panel.add(constraint2Label, "4, 8");
+		
+		constraint2Field = new JTextField();
+		prod2Panel.add(constraint2Field, "8, 8");
+		constraint2Field.setText("4, 5");
+		constraint2Field.setColumns(10);
+		
+		
 		
 		
 		//get sample products
@@ -281,8 +377,13 @@ public class Window {
 
 	}
 	
-	protected void setOutputText(String output) {
-		outputArea.setText(output);
+	protected void setOutputText(String output, String output2) {
+		if (output2 != null) {
+			outputArea.setText(output + "\n" + output2);
+		} else {
+			outputArea.setText(output);
+		}
+		
 	}
 	
 	protected void setOutputPanelChart(ChartPanel chart) {
@@ -309,13 +410,21 @@ public class Window {
 	
 	protected void setOutputPanelCloud(Cloud cloud) {
 		outputPanel.removeAll();
+		outputPanel.repaint();
 		outputPanel.setLayout(new FlowLayout());
 		outputPanel.setBackground(Color.WHITE);
 		for (Tag tag : cloud.tags()) {
-			//String thing = tag.getName();
+			String tagName = tag.getName();
+			if (tag.getLink().equals(String.format("%d", ContentAnalyzer.QUERY_2))) {
+				tagName = tagName.substring(0, tagName.length() - 2);
+			}
+			
 			final JLabel label = new JLabel(tag.getName());
 			label.setOpaque(false);
-			label.setFont(label.getFont().deriveFont((float) tag.getWeight() * 10));
+			label.setFont(label.getFont().deriveFont((float) tag.getWeight() * 30));	
+			if (tag.getLink().equals(String.format("%d",ContentAnalyzer.QUERY_2))) {
+				label.setForeground(Color.CYAN);
+			}
 			//label.setVisible(true);
 			outputPanel.add(label);
 			outputPanel.setVisible(true);
@@ -324,12 +433,22 @@ public class Window {
 	
 	protected void setOutputPanelCloudInteractive(Cloud cloud) {
 		outputPanel.removeAll();
+		outputPanel.repaint();
 		outputPanel.setLayout(new FlowLayout());
 		outputPanel.setBackground(Color.WHITE);
 		for (Tag tag : cloud.tags()) {
-			final JLabel label = new JLabel(tag.getName());
+			
+			String tagName = tag.getName();
+			if (tag.getLink().equals(String.format("%d", ContentAnalyzer.QUERY_2))) {
+				tagName = tagName.substring(0, tagName.length() - 2);
+			}
+			
+			final JLabel label = new JLabel(tagName);
 			label.setOpaque(false);
 			label.setFont(label.getFont().deriveFont((float) tag.getWeight() * 30));
+			if (tag.getLink().equals(String.format("%d",ContentAnalyzer.QUERY_2))) {
+				label.setForeground(Color.CYAN);
+			}
 			outputPanel.add(label);
 			outputPanel.setVisible(true);
 		}

@@ -1,5 +1,6 @@
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Hashtable;
 //import edu.brandeis.cs127b.pa2.gnuplot.*;
 public class QueryHandler {
     static final String JDBC_DRIVER = "com.postgresql.jdbc.Driver";
@@ -34,16 +35,37 @@ public class QueryHandler {
         return conn;          
     }
         
-    public String executeQuery(PreparedStatement range, PreparedStatement filter, String pid, String constraints) throws Exception {
+    public ArrayList<Hashtable<String, Integer>> executeQuery(PreparedStatement range, PreparedStatement filter, String pid, String constraints, String pid2, String constraints2) throws Exception {
     	//contentAnalyzer is set to null when the current instance of CA is told to stop its threads
     	if (contentAnalyzer == null) {
     		contentAnalyzer = new ContentAnalyzer(this);
     	}
     	
+    	
+    	ArrayList<String> constraintList = cleanConstraints(constraints);
+    	ArrayList<String> constraintList2 = cleanConstraints(constraints2);
+    	
+    	ArrayList<String> reviews = queryDB(range, filter, constraintList, pid);
+    	ArrayList<String> reviews2 = null;
+    	if (constraintList2 != null && pid2 != null) {
+    		reviews2 = queryDB(range, filter, constraintList2, pid2);
+    	}
+    	    
+    	
+    	ArrayList<Hashtable<String, Integer>> finalList = contentAnalyzer.analyze(reviews, reviews2);
+        
+        return finalList;
+        
+    }
+    
+    /*
+     * Queries the database, using either a range or filter PreparedStatement based on the size of the constraint list
+     */
+    private ArrayList<String> queryDB(PreparedStatement range, PreparedStatement filter, ArrayList<String> constraintList, String pid) throws NumberFormatException, SQLException {
+    	
     	ResultSet rs;
-        ArrayList<String> constraintList = cleanConstraints(constraints);
-
-        if (constraintList.size() == 1) {
+    	
+    	if (constraintList.size() == 1) {
         	
         	filter.setString(1, pid);
         	filter.setFloat(2, Float.parseFloat(constraintList.get(0)));
@@ -63,10 +85,8 @@ public class QueryHandler {
         	reviews.add(rs.getString(1));
         }
         
-        String analyzedOutput = contentAnalyzer.analyze(reviews);
-        
-        return analyzedOutput;
-        
+        return reviews;
+    	
     }
 
         
@@ -76,6 +96,10 @@ public class QueryHandler {
      * Fails if the input contains other characters
      */
     public ArrayList<String> cleanConstraints(String constraints) throws Exception{
+    	
+    	if (constraints == null) {
+    		return null;
+    	}
     	
     	String[] constraintList = constraints.trim().split(",\\s*");
     	ArrayList<String> cleanedList = new ArrayList<String>();
