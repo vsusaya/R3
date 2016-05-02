@@ -1,3 +1,4 @@
+package core;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Hashtable;
@@ -68,7 +69,7 @@ public class Aggregator implements Runnable{
 			while(!finished || queue.size() != 0) {
 				System.out.println("In run");
 				
-				if (contentAnalyzer.getKillThreads()) {
+				if (contentAnalyzer.getKillThreads() || Window.getWindow().isStopped()) {
 					break;
 				}
 				
@@ -142,6 +143,11 @@ public class Aggregator implements Runnable{
 			}
 			
 		}	
+		//done, so send a copy of what we have to the window so that the user can switch between visualizations even when
+		//the process is done
+		Window.getWindow().setFinalMap1(map);
+		Window.getWindow().setFinalMap2(map2);
+		
 	}
 	
 	private void insertIntoCorrectMap(JSONObject jObject, int queryNum) {

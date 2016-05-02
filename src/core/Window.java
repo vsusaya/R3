@@ -1,3 +1,4 @@
+package core;
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
 import java.awt.FlowLayout;
@@ -36,6 +37,8 @@ import com.jgoodies.forms.layout.FormLayout;
 import com.jgoodies.forms.layout.ColumnSpec;
 import com.jgoodies.forms.layout.RowSpec;
 import com.jgoodies.forms.layout.FormSpecs;
+
+import exploration.ExplorationWindow;
 
 import javax.swing.border.LineBorder;
 
@@ -76,8 +79,17 @@ public class Window {
 	private JLabel searchLabel;
 	private JLabel p1Label;
 	private JLabel p2Label;
+	private JPanel panel;
+	private JLabel lblVisualizationType;
+	private JButton exportBtn;
+	private JLabel lblNotWhatYoure;
+	private JLabel lblSampleProducts;
+	private JButton btnShuffle;
 	
+	private boolean stopCalled;
 	
+	private Hashtable<String, Integer> finalMap;
+	private Hashtable<String, Integer> finalMap2;
 	
 
 	/**
@@ -105,7 +117,10 @@ public class Window {
 		conn = QueryHandler.establishConnection();
 		range = conn.prepareStatement("SELECT content, overall FROM review as r, product as p WHERE r.productid = p.productid AND p.productid = ? AND r.overall >= ? AND r.overall <= ?");
 		filter = conn.prepareStatement("SELECT content, overall FROM review as r, product as p WHERE r.productid = p.productid AND p.productid = ? AND r.overall = ?");
-		sample = conn.prepareStatement("SELECT productid, name, imgurl FROM product as p LIMIT 3");
+		sample = conn.prepareStatement("SELECT productid, name, imgurl FROM product as p ORDER BY RANDOM() LIMIT 3");
+		setStopped(false);
+		finalMap = null;
+		finalMap2 = null;
 		initialize();
 	}
 
@@ -119,11 +134,11 @@ public class Window {
 		frame.getContentPane().setLayout(null);
 		
 		outputLabel = new JLabel("Output:");
-		outputLabel.setBounds(38, 714, 279, 16);
+		outputLabel.setBounds(104, 714, 533, 16);
 		frame.getContentPane().add(outputLabel);
 		
 		JScrollPane outputScrollPane = new JScrollPane();
-		outputScrollPane.setBounds(38, 742, 1139, 47);
+		outputScrollPane.setBounds(102, 742, 1222, 47);
 		frame.getContentPane().add(outputScrollPane);
 		
 		outputArea = new JTextArea();
@@ -135,15 +150,24 @@ public class Window {
 			public void actionPerformed(ActionEvent e) {
 				
 				try {
+					//reset stop flags for CA
+					setStopped(false);
+					
+					//reset the previous hashtables so that clicking on the visualization radio buttons doesn't
+					//overwrite the visualization of what is currently processing
+					setFinalMap1(null);
+					setFinalMap2(null);
 					
 					//if another thread is processing and submit is hit again, kill the last thread.
 					if (processingThread != null) {
 						queryHandler.getContentAnalyzer().setKillThreads();
 						
-						for (Thread mThread : mapThreads) {
-							mThread.interrupt();
+						if (mapThreads != null) {
+							for (Thread mThread : mapThreads) {
+								mThread.interrupt();
+							}
 						}
-
+							
 						aggThread.interrupt();
 						processingThread.interrupt();
 						
@@ -155,14 +179,17 @@ public class Window {
 					Thread queryThread = new Thread(() -> {
 						String results;
 						try {
-							outputLabel.setText(String.format("Output for %s: (processing)", constraintField.getText()));
+							outputLabel.setText(String.format("Output for %s, %s: (processing)", pidField.getText(), pid2Field.getText()));
 							ArrayList<Hashtable<String, Integer>> finalList = queryHandler.executeQuery(range, filter, pidField.getText(), constraintField.getText(), pid2Field.getText(), constraint2Field.getText());
 							setOutputText(finalList.get(0).toString(), finalList.get(1).toString());
-							outputLabel.setText(String.format("Output for %s: (done)", constraintField.getText()));
+							if (!isStopped()) {
+								outputLabel.setText(String.format("Output for %s, %s: (done)", pidField.getText(), pid2Field.getText()));
+							}
+							
 						} catch (Exception e1) {
 							e1.printStackTrace();
 							//outputArea.setText("Ending previous process...");
-							outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
+							outputLabel.setText(String.format("Output for %s, %s: (stopped)", pidField.getText(), pid2Field.getText()));
 							System.out.println("SUBMIT ERROR");
 						}
 						
@@ -178,19 +205,21 @@ public class Window {
 				
 			}
 		});
-		submitButton.setBounds(636, 158, 117, 29);
+		submitButton.setBounds(639, 154, 117, 29);
 		frame.getContentPane().add(submitButton);
 		
 		outputPanel = new JPanel(new BorderLayout());
-		outputPanel.setBounds(38, 195, 1222, 507);
+		outputPanel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
+		outputPanel.setBounds(102, 195, 1222, 507);
 		frame.getContentPane().add(outputPanel);
 		
 		
 		//Sample Product section
 		//product panel
 		productPanel = new JPanel();
+		productPanel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
 		productPanel.setBackground(Color.WHITE);
-		productPanel.setBounds(778, 40, 645, 95);
+		productPanel.setBounds(781, 51, 622, 95);
 		frame.getContentPane().add(productPanel);
 				
 		productBtnList = new ArrayList<JButton>();
@@ -224,44 +253,30 @@ public class Window {
 		productPanel.add(productButton3);
 		
 		
-		
-		//Radio Button Group
-		rdbtnBarChart = new JRadioButton("Bar Chart");
-		rdbtnBarChart.setName("Bar Chart");
-		rdbtnBarChart.setBounds(38, 159, 141, 23);
-		rdbtnBarChart.setSelected(true);
-		frame.getContentPane().add(rdbtnBarChart);
-		
-		rdbtnWordCloud = new JRadioButton("Word Cloud");
-		rdbtnWordCloud.setName("Word Cloud");
-		rdbtnWordCloud.setBounds(206, 159, 141, 23);
-		frame.getContentPane().add(rdbtnWordCloud);
-		
 		vizButtonGroup = new ButtonGroup();
-		vizButtonGroup.add(rdbtnBarChart);
-		vizButtonGroup.add(rdbtnWordCloud);
 		
 		stopButton = new JButton("Stop");
 		stopButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
+					setStopped(true);
 					queryHandler.getContentAnalyzer().setKillThreads();
 					processingThread = null;
-					outputLabel.setText(String.format("Output for %s: (stopping)", constraintField.getText()));
+					outputLabel.setText(String.format("Output for %s, %s: (stopped)", pidField.getText(), pid2Field.getText()));
 				} catch (Exception se) {
 					//Possible NullPointer exception if process was already stopped
 					se.printStackTrace();
-					outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
+					//outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
 				}
 				
 			}
 		});
-		stopButton.setBounds(359, 709, 117, 29);
+		stopButton.setBounds(1078, 709, 117, 29);
 		frame.getContentPane().add(stopButton);
 		
 		JPanel prod1Panel = new JPanel();
 		prod1Panel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
-		prod1Panel.setBounds(38, 17, 337, 129);
+		prod1Panel.setBounds(38, 17, 345, 129);
 		frame.getContentPane().add(prod1Panel);
 		prod1Panel.setLayout(new FormLayout(new ColumnSpec[] {
 				FormSpecs.RELATED_GAP_COLSPEC,
@@ -287,15 +302,12 @@ public class Window {
 		prod1Panel.add(p1Label, "4, 2");
 		
 		JLabel pidLabel = new JLabel("Product ID");
-		prod1Panel.add(pidLabel, "4, 4");
+		prod1Panel.add(pidLabel, "4, 6");
 		
 		pidField = new JTextField();
-		prod1Panel.add(pidField, "8, 4");
+		prod1Panel.add(pidField, "8, 6");
 		pidField.setText("B00B93KG1A");
 		pidField.setColumns(10);
-		
-		searchLabel = new JLabel("Search Terms");
-		prod1Panel.add(searchLabel, "4, 6");
 		
 		JLabel constraintLabel = new JLabel("Value Constraint(s)");
 		prod1Panel.add(constraintLabel, "4, 8");
@@ -336,15 +348,12 @@ public class Window {
 		prod2Panel.add(p2Label, "4, 2, default, bottom");
 		
 		JLabel pid2Label = new JLabel("Product ID");
-		prod2Panel.add(pid2Label, "4, 4");
+		prod2Panel.add(pid2Label, "4, 6");
 		
 		pid2Field = new JTextField();
-		prod2Panel.add(pid2Field, "8, 4");
+		prod2Panel.add(pid2Field, "8, 6");
 		pid2Field.setText("B00B93KG1A");
 		pid2Field.setColumns(10);
-		
-		searchLabel = new JLabel("Search Terms");
-		prod2Panel.add(searchLabel, "4, 6");
 		
 		JLabel constraint2Label = new JLabel("Value Constraint(s)");
 		prod2Panel.add(constraint2Label, "4, 8");
@@ -353,6 +362,157 @@ public class Window {
 		prod2Panel.add(constraint2Field, "8, 8");
 		constraint2Field.setText("4, 5");
 		constraint2Field.setColumns(10);
+		
+		JButton exploreButton = new JButton("Explore...");
+		exploreButton.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				try {
+					ExplorationWindow eWindow = new ExplorationWindow(conn);
+					eWindow.frame.setVisible(true);
+				} catch (Exception ew) {
+					ew.printStackTrace();
+				}
+				
+			}
+		});
+		exploreButton.setBounds(1143, 154, 117, 29);
+		frame.getContentPane().add(exploreButton);
+		
+		panel = new JPanel();
+		panel.setBorder(new LineBorder(new Color(0, 0, 0), 1, true));
+		panel.setBounds(38, 153, 345, 34);
+		frame.getContentPane().add(panel);
+		panel.setLayout(new FormLayout(new ColumnSpec[] {
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,
+				FormSpecs.RELATED_GAP_COLSPEC,
+				FormSpecs.DEFAULT_COLSPEC,},
+			new RowSpec[] {
+				FormSpecs.RELATED_GAP_ROWSPEC,
+				FormSpecs.DEFAULT_ROWSPEC,}));
+		
+		lblVisualizationType = new JLabel("Visualization:");
+		panel.add(lblVisualizationType, "2, 2");
+		
+		
+		
+		//Radio Button Group
+		rdbtnBarChart = new JRadioButton("Bar Chart");
+		panel.add(rdbtnBarChart, "6, 2");
+		rdbtnBarChart.setName("Bar Chart");
+		rdbtnBarChart.setSelected(true);
+		rdbtnBarChart.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (finalMap != null && finalMap2 != null) {
+					setStopped(false); //hacky-implementation.
+					Visualizer.getVisualizer().makeBarChart(finalMap, finalMap2);	
+					setStopped(true);
+				}
+			}
+		});
+		vizButtonGroup.add(rdbtnBarChart);
+		
+		rdbtnWordCloud = new JRadioButton("Word Cloud");
+		panel.add(rdbtnWordCloud, "10, 2");
+		rdbtnWordCloud.setName("Word Cloud");
+		rdbtnWordCloud.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {	
+				if (finalMap != null && finalMap2 != null) {
+					setStopped(false);
+					Visualizer.getVisualizer().makeWordCloud(finalMap, finalMap2);
+					setStopped(true);
+				}
+			}
+		});	
+		vizButtonGroup.add(rdbtnWordCloud);
+		
+		exportBtn = new JButton("Export");
+		exportBtn.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				String output = outputArea.getText();
+				Thread exportThread = new Thread(new Exporter(output));
+				exportThread.run();
+			}
+		});
+		exportBtn.setBounds(1207, 709, 117, 29);
+		frame.getContentPane().add(exportBtn);
+		
+		lblNotWhatYoure = new JLabel("Not what you're looking for?");
+		lblNotWhatYoure.setBounds(936, 159, 195, 16);
+		frame.getContentPane().add(lblNotWhatYoure);
+		
+		lblSampleProducts = new JLabel("Sample Products");
+		lblSampleProducts.setBounds(977, 17, 109, 16);
+		frame.getContentPane().add(lblSampleProducts);
+		
+		btnShuffle = new JButton("Shuffle!");
+		btnShuffle.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				
+				//get sample products
+				//should be refactored
+				try {
+					
+					//sample product buttons
+					//should be refactored
+					productBtnList.clear();
+					productPanel.removeAll();
+					productPanel.validate();
+					JButton productButton1 = new ProductButton("productButton1");
+					productButton1.addActionListener(new ActionListener() {
+						public void actionPerformed(ActionEvent e) {
+							pidField.setText(((ProductButton) productButton1).getPid());
+						}
+					});
+					productBtnList.add(productButton1);
+					productPanel.add(productButton1);
+					
+					JButton productButton2 = new ProductButton("productButton2");
+					productButton2.addActionListener(new ActionListener() {
+						public void actionPerformed(ActionEvent e) {
+							pidField.setText(((ProductButton) productButton2).getPid());
+						}
+					});
+					productBtnList.add(productButton2);
+					productPanel.add(productButton2);
+					
+					JButton productButton3 = new ProductButton("productButton3");
+					productButton3.addActionListener(new ActionListener() {
+						public void actionPerformed(ActionEvent e) {
+							pidField.setText(((ProductButton) productButton3).getPid());
+						}
+					});
+					productBtnList.add(productButton3);
+					productPanel.add(productButton3);
+					
+					productList = queryHandler.getSampleProducts(sample);
+					
+					for (Product product : productList) {
+						JButton prodButton = productBtnList.remove(0);
+						
+						prodButton.setText(product.getName());
+						((ProductButton) prodButton).setPid(product.getPid());
+						((ProductButton) prodButton).setImgurl(product.getImgurl());
+						((ProductButton) prodButton).setImage();
+					}
+					
+				} catch (SQLException e1) {
+					JOptionPane.showMessageDialog(null, "Error Retrieving Sample Products");
+					e1.printStackTrace();
+				}
+
+			}
+		});
+		btnShuffle.setBounds(1098, 10, 117, 29);
+		frame.getContentPane().add(btnShuffle);
 		
 		
 		
@@ -378,14 +538,20 @@ public class Window {
 	}
 	
 	protected void setOutputText(String output, String output2) {
-		if (output2 != null) {
-			outputArea.setText(output + "\n" + output2);
-		} else {
-			outputArea.setText(output);
-		}
 		
+		if (!isStopped()) {
+			if (output2 != null) {
+				outputArea.setText(output + "\n" + output2);
+			} else {
+				outputArea.setText(output);
+			}
+		}
 	}
 	
+	/*
+	 * the "interactive" versions are duplicates. should be refactored.
+	 */
+		
 	protected void setOutputPanelChart(ChartPanel chart) {
 		outputPanel.removeAll();
 		outputPanel.setLayout(new BorderLayout());
@@ -429,6 +595,7 @@ public class Window {
 			outputPanel.add(label);
 			outputPanel.setVisible(true);
 		}
+		outputPanel.validate();
 	}
 	
 	protected void setOutputPanelCloudInteractive(Cloud cloud) {
@@ -456,7 +623,7 @@ public class Window {
 	}
 
 	
-	protected static Window getWindow() {
+	public static Window getWindow() {
 		return Window.instance;
 	}
 	
@@ -475,4 +642,37 @@ public class Window {
 	protected JLabel getOutputLabel() {
 		return outputLabel;
 	}
+	
+	public JTextField getPIDField1() {
+		return pidField;
+	}
+	
+	public JTextField getPIDField2() {
+		return pid2Field;
+	}
+	
+	public void setPIDField1(String id) {
+		pidField.setText(id);
+	}
+	
+	public void setPIDField2(String id) {
+		pid2Field.setText(id);;
+	}
+	
+	public boolean isStopped() {
+		return stopCalled;
+	}
+	
+	public void setStopped(boolean value) {
+		stopCalled = value;
+	}
+	
+	public void setFinalMap1(Hashtable<String, Integer> map) {
+		finalMap = map;
+	}
+	
+	public void setFinalMap2(Hashtable<String, Integer> map) {
+		finalMap2 = map;
+	}
+	
 }

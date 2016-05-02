@@ -1,7 +1,8 @@
+package core;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Hashtable;
-//import edu.brandeis.cs127b.pa2.gnuplot.*;
+
 public class QueryHandler {
     static final String JDBC_DRIVER = "com.postgresql.jdbc.Driver";
     static final String DB_TYPE = "postgresql";
@@ -47,7 +48,7 @@ public class QueryHandler {
     	
     	ArrayList<String> reviews = queryDB(range, filter, constraintList, pid);
     	ArrayList<String> reviews2 = null;
-    	if (constraintList2 != null && pid2 != null) {
+    	if (constraintList2 != null && pid2 != null && !(pid2.equals(""))) {
     		reviews2 = queryDB(range, filter, constraintList2, pid2);
     	}
     	    

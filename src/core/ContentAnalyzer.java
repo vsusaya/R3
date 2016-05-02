@@ -1,3 +1,4 @@
+package core;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -156,7 +157,7 @@ public class ContentAnalyzer {
 		int count = 0;
 		for (String review : reviews) {
 			
-			if (killThreads) {
+			if (killThreads || Window.getWindow().isStopped()) {
 				break;
 			}
 			

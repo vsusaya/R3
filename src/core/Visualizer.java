@@ -1,3 +1,4 @@
+package core;
 import java.awt.Dimension;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -26,7 +27,10 @@ public class Visualizer {
 	static final int MINIMUM = 3;
 	static final int MAX_RESULTS = 15;
 	
+	static Visualizer visualizer;
+	
 	public Visualizer() {
+		Visualizer.visualizer = this;
 	}
 	
 	
@@ -34,6 +38,10 @@ public class Visualizer {
 	//necessary?
 	//if too slow, consider editing so that only a hashtable of diffs is sent
 	public void makeBarChart(Hashtable<String, Integer> countsTable, Hashtable<String, Integer> countsTable2) {
+		
+		if (Window.getWindow().isStopped()) {
+			return;
+		}
 		
 		HashMap<String, Integer> counts = hashMapTopK(countsTable);
 		HashMap<String, Integer> counts2 = null;
@@ -93,6 +101,10 @@ public class Visualizer {
 	
 	public void makeBarChartInteractive(String countString, String countString2) {
 		
+		if (Window.getWindow().isStopped()) {
+			return;
+		}
+		
 		HashMap<String, Integer> counts = stringToHashMapTopK(countString);
 		HashMap<String, Integer> counts2 = null;
 		if (countString2 != null || countString2 != "") {
@@ -133,6 +145,10 @@ public class Visualizer {
 	
 	public void makeWordCloud(Hashtable<String, Integer> counts, Hashtable<String, Integer> counts2) {
 		
+		if (Window.getWindow().isStopped()) {
+			return;
+		}
+		
 		Cloud cloud = new Cloud();
 		
 		//add all words and their weights (as Tags) to cloud
@@ -162,8 +178,12 @@ public class Visualizer {
 		
 	}
 	
-public void makeWordCloudInteractive(String countString, String countString2) {
-		
+	public void makeWordCloudInteractive(String countString, String countString2) {
+			
+		if (Window.getWindow().isStopped()) {
+			return;
+		}
+	
 		HashMap<String, Integer> counts = stringToHashMap(countString);
 	
 		HashMap<String, Integer> counts2 = null;
@@ -317,6 +337,10 @@ public void makeWordCloudInteractive(String countString, String countString2) {
 		}
 		
 		return counts;
+	}
+	
+	public static Visualizer getVisualizer() {
+		return Visualizer.visualizer;
 	}
 	
 }

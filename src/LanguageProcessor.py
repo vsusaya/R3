@@ -89,4 +89,6 @@ def start():
   #sys.stdout.write(json.dumps(count_map))
   print(json.dumps(count_map))
 
-start() 
+#may need to remove this conditional if R3 can't run this
+if __name__=="__main__":
+  start() 
