@@ -1,3 +1,4 @@
+package core;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Hashtable;

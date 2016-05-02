@@ -1,3 +1,4 @@
+package core;
 import java.awt.Dimension;
 import java.util.HashMap;
 import java.util.Hashtable;
