@@ -86,7 +86,10 @@ public class Window {
 	private JLabel lblSampleProducts;
 	private JButton btnShuffle;
 	
+	private boolean stopCalled;
 	
+	private Hashtable<String, Integer> finalMap;
+	private Hashtable<String, Integer> finalMap2;
 	
 
 	/**
@@ -115,6 +118,9 @@ public class Window {
 		range = conn.prepareStatement("SELECT content, overall FROM review as r, product as p WHERE r.productid = p.productid AND p.productid = ? AND r.overall >= ? AND r.overall <= ?");
 		filter = conn.prepareStatement("SELECT content, overall FROM review as r, product as p WHERE r.productid = p.productid AND p.productid = ? AND r.overall = ?");
 		sample = conn.prepareStatement("SELECT productid, name, imgurl FROM product as p ORDER BY RANDOM() LIMIT 3");
+		setStopped(false);
+		finalMap = null;
+		finalMap2 = null;
 		initialize();
 	}
 
@@ -128,7 +134,7 @@ public class Window {
 		frame.getContentPane().setLayout(null);
 		
 		outputLabel = new JLabel("Output:");
-		outputLabel.setBounds(104, 714, 279, 16);
+		outputLabel.setBounds(104, 714, 533, 16);
 		frame.getContentPane().add(outputLabel);
 		
 		JScrollPane outputScrollPane = new JScrollPane();
@@ -144,6 +150,13 @@ public class Window {
 			public void actionPerformed(ActionEvent e) {
 				
 				try {
+					//reset stop flags for CA
+					setStopped(false);
+					
+					//reset the previous hashtables so that clicking on the visualization radio buttons doesn't
+					//overwrite the visualization of what is currently processing
+					setFinalMap1(null);
+					setFinalMap2(null);
 					
 					//if another thread is processing and submit is hit again, kill the last thread.
 					if (processingThread != null) {
@@ -166,14 +179,17 @@ public class Window {
 					Thread queryThread = new Thread(() -> {
 						String results;
 						try {
-							outputLabel.setText(String.format("Output for %s: (processing)", constraintField.getText()));
+							outputLabel.setText(String.format("Output for %s, %s: (processing)", pidField.getText(), pid2Field.getText()));
 							ArrayList<Hashtable<String, Integer>> finalList = queryHandler.executeQuery(range, filter, pidField.getText(), constraintField.getText(), pid2Field.getText(), constraint2Field.getText());
 							setOutputText(finalList.get(0).toString(), finalList.get(1).toString());
-							outputLabel.setText(String.format("Output for %s: (done)", constraintField.getText()));
+							if (!isStopped()) {
+								outputLabel.setText(String.format("Output for %s, %s: (done)", pidField.getText(), pid2Field.getText()));
+							}
+							
 						} catch (Exception e1) {
 							e1.printStackTrace();
 							//outputArea.setText("Ending previous process...");
-							outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
+							outputLabel.setText(String.format("Output for %s, %s: (stopped)", pidField.getText(), pid2Field.getText()));
 							System.out.println("SUBMIT ERROR");
 						}
 						
@@ -243,18 +259,19 @@ public class Window {
 		stopButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				try {
+					setStopped(true);
 					queryHandler.getContentAnalyzer().setKillThreads();
 					processingThread = null;
-					outputLabel.setText(String.format("Output for %s: (stopping)", constraintField.getText()));
+					outputLabel.setText(String.format("Output for %s, %s: (stopped)", pidField.getText(), pid2Field.getText()));
 				} catch (Exception se) {
 					//Possible NullPointer exception if process was already stopped
 					se.printStackTrace();
-					outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
+					//outputLabel.setText(String.format("Output for %s: (stopped)", constraintField.getText()));
 				}
 				
 			}
 		});
-		stopButton.setBounds(440, 709, 117, 29);
+		stopButton.setBounds(1078, 709, 117, 29);
 		frame.getContentPane().add(stopButton);
 		
 		JPanel prod1Panel = new JPanel();
@@ -391,11 +408,29 @@ public class Window {
 		panel.add(rdbtnBarChart, "6, 2");
 		rdbtnBarChart.setName("Bar Chart");
 		rdbtnBarChart.setSelected(true);
+		rdbtnBarChart.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				if (finalMap != null && finalMap2 != null) {
+					setStopped(false); //hacky-implementation.
+					Visualizer.getVisualizer().makeBarChart(finalMap, finalMap2);	
+					setStopped(true);
+				}
+			}
+		});
 		vizButtonGroup.add(rdbtnBarChart);
 		
 		rdbtnWordCloud = new JRadioButton("Word Cloud");
 		panel.add(rdbtnWordCloud, "10, 2");
 		rdbtnWordCloud.setName("Word Cloud");
+		rdbtnWordCloud.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {	
+				if (finalMap != null && finalMap2 != null) {
+					setStopped(false);
+					Visualizer.getVisualizer().makeWordCloud(finalMap, finalMap2);
+					setStopped(true);
+				}
+			}
+		});	
 		vizButtonGroup.add(rdbtnWordCloud);
 		
 		exportBtn = new JButton("Export");
@@ -503,14 +538,20 @@ public class Window {
 	}
 	
 	protected void setOutputText(String output, String output2) {
-		if (output2 != null) {
-			outputArea.setText(output + "\n" + output2);
-		} else {
-			outputArea.setText(output);
-		}
 		
+		if (!isStopped()) {
+			if (output2 != null) {
+				outputArea.setText(output + "\n" + output2);
+			} else {
+				outputArea.setText(output);
+			}
+		}
 	}
 	
+	/*
+	 * the "interactive" versions are duplicates. should be refactored.
+	 */
+		
 	protected void setOutputPanelChart(ChartPanel chart) {
 		outputPanel.removeAll();
 		outputPanel.setLayout(new BorderLayout());
@@ -554,6 +595,7 @@ public class Window {
 			outputPanel.add(label);
 			outputPanel.setVisible(true);
 		}
+		outputPanel.validate();
 	}
 	
 	protected void setOutputPanelCloudInteractive(Cloud cloud) {
@@ -615,6 +657,22 @@ public class Window {
 	
 	public void setPIDField2(String id) {
 		pid2Field.setText(id);;
+	}
+	
+	public boolean isStopped() {
+		return stopCalled;
+	}
+	
+	public void setStopped(boolean value) {
+		stopCalled = value;
+	}
+	
+	public void setFinalMap1(Hashtable<String, Integer> map) {
+		finalMap = map;
+	}
+	
+	public void setFinalMap2(Hashtable<String, Integer> map) {
+		finalMap2 = map;
 	}
 	
 }

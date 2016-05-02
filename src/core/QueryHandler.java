@@ -2,7 +2,7 @@ package core;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.Hashtable;
-//import edu.brandeis.cs127b.pa2.gnuplot.*;
+
 public class QueryHandler {
     static final String JDBC_DRIVER = "com.postgresql.jdbc.Driver";
     static final String DB_TYPE = "postgresql";
